@@ -4,24 +4,32 @@ const ERROR_400 = 400;
 const ERROR_404 = 404;
 const ERROR_500 = 500;
 
+const MESSAGE_400 = 'Переданы некорректные данные';
+const MESSAGE_404 = 'Запрашиваемый пользователь не найден';
+const MESSAGE_500 = 'На сервере произошла ошибка';
+
 module.exports.getUsers = (req, res) => {
   User.find({})
     .then((user) => res.send({ data: user }))
     .catch(() => {
-      res.status(ERROR_500).send({ message: 'На сервере произошла ошибка' });
+      res.status(ERROR_500).send({ message: MESSAGE_500 });
     });
 };
 
 module.exports.getUserById = (req, res) => {
   User.findById(req.params.id)
     .then((user) => {
-      res.send({ data: user });
+      if (user == null) {
+        res.status(ERROR_404).send({ message: MESSAGE_404 });
+      } else {
+        res.send({ data: user });
+      }
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        res.status(ERROR_400).send({ message: 'Запрашиваемый пользователь не найден' });
+        res.status(ERROR_400).send({ message: MESSAGE_400 });
       } else {
-        res.status(ERROR_500).send({ message: 'На сервере произошла ошибка' });
+        res.status(ERROR_500).send({ message: MESSAGE_500 });
       }
     });
 };
@@ -35,9 +43,9 @@ module.exports.createUser = (req, res) => {
     })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(ERROR_400).send({ message: 'Переданы некорректные данные' });
+        res.status(ERROR_400).send({ message: MESSAGE_400 });
       } else {
-        res.status(ERROR_500).send({ message: 'На сервере произошла ошибка' });
+        res.status(ERROR_500).send({ message: MESSAGE_500 });
       }
     });
 };
@@ -50,18 +58,21 @@ module.exports.updateProfile = (req, res) => {
     { name, about },
     {
       new: true,
+      runValidators: true,
     },
   )
-    .then((user) => res.send({
-      data: user,
-    }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        res.status(ERROR_400).send({ message: 'Переданы некорректные данные' });
-      } else if (err.name === 'CastError') {
-        res.status(ERROR_404).send({ message: 'Запрашиваемый пользователь не найден' });
+    .then((user) => {
+      if (user == null) {
+        res.status(ERROR_404).send({ message: MESSAGE_404 });
       } else {
-        res.status(ERROR_500).send({ message: 'На сервере произошла ошибка' });
+        res.send({ data: user });
+      }
+    })
+    .catch((err) => {
+      if (err.name === 'ValidationError' || err.name === 'CastError') {
+        res.status(ERROR_400).send({ message: MESSAGE_400 });
+      } else {
+        res.status(ERROR_500).send({ message: MESSAGE_500 });
       }
     });
 };
@@ -74,18 +85,23 @@ module.exports.updateAvatar = (req, res) => {
     { avatar },
     {
       new: true,
+      runValidators: true,
     },
   )
-    .then((user) => res.send({
-      data: user,
-    }))
+    .then((user) => {
+      if (user == null) {
+        res.status(ERROR_404).send({ message: MESSAGE_404 });
+      } else {
+        res.send({ data: user });
+      }
+    })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(ERROR_400).send({ message: 'Переданы некорректные данные' });
+        res.status(ERROR_400).send({ message: MESSAGE_400 });
       } else if (err.name === 'CastError') {
-        res.status(ERROR_404).send({ message: 'Запрашиваемый пользователь не найден' });
+        res.status(ERROR_404).send({ message: MESSAGE_404 });
       } else {
-        res.status(ERROR_500).send({ message: 'На сервере произошла ошибка' });
+        res.status(ERROR_500).send({ message: MESSAGE_500 });
       }
     });
 };

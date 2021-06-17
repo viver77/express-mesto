@@ -4,6 +4,9 @@ const bodyParser = require('body-parser');
 const usersRouter = require('./routes/users');
 const cardsRouter = require('./routes/cards');
 
+const ERROR_404 = 404;
+const MESSAGE_404 = 'Запрашиваемый ресурс не найден';
+
 const { PORT = 3000 } = process.env;
 
 const app = express();
@@ -25,6 +28,12 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/users', usersRouter);
 app.use('/cards', cardsRouter);
+
+app.use('/', (req, res) => {
+  res
+    .status(ERROR_404)
+    .send({ message: MESSAGE_404 });
+});
 
 app.listen(PORT, () => {
   console.log(`App listening on port ${PORT}`);
