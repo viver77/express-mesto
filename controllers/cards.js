@@ -1,24 +1,26 @@
 const Card = require('../models/card');
 
-const ERROR_400 = 400;
-const ERROR_404 = 404;
-const ERROR_500 = 500;
-
 const MESSAGE_400 = 'Переданы некорректные данные';
 const MESSAGE_404 = 'Запрашиваемая карточка не найдена';
 const MESSAGE_500 = 'На сервере произошла ошибка';
+const MESSAGE_403 = 'Нельзя удалять чужие карточки';
 
-module.exports.getCards = (req, res) => {
+const NotFoundError = require('../errors/not-found-err');
+const BadRequestError = require('../errors/bad-request-err');
+const InternalServerError = require('../errors/internal-server-err');
+const ForbiddenError = require('../errors/forbidden-err');
+
+module.exports.getCards = (req, res, next) => {
   Card.find({})
     .then((card) => res.status(200).send(
       { data: card },
     ))
     .catch(() => {
-      res.status(ERROR_500).send({ message: MESSAGE_500 });
+      next(new InternalServerError(MESSAGE_500));
     });
 };
 
-module.exports.createCard = (req, res) => {
+module.exports.createCard = (req, res, next) => {
   const { _id } = req.user;
   const { name, link } = req.body;
 
@@ -28,32 +30,37 @@ module.exports.createCard = (req, res) => {
     })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(ERROR_400).send({ message: MESSAGE_400 });
+        next(new BadRequestError(MESSAGE_400));
       } else {
-        res.status(ERROR_500).send({ message: MESSAGE_500 });
+        next(new InternalServerError(MESSAGE_500));
       }
     });
 };
 
-module.exports.deleteCard = (req, res) => {
-  Card.findByIdAndRemove(req.params.id)
+module.exports.deleteCard = (req, res, next) => {
+  Card.findById(req.params.id)
     .then((card) => {
-      if (card == null) {
-        res.status(ERROR_404).send({ message: MESSAGE_404 });
+      if (!card) {
+        throw new NotFoundError(MESSAGE_404);
+      } else if (card.owner.toString() !== req.user._id.toString()) {
+        throw new ForbiddenError(MESSAGE_403);
       } else {
-        res.send({ data: card });
+        Card.findByIdAndRemove(req.params.id)
+          .then((deletedCard) => {
+            res.send({ data: deletedCard });
+          });
       }
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        res.status(ERROR_400).send({ message: MESSAGE_400 });
+        next(new BadRequestError(MESSAGE_400));
       } else {
-        res.status(ERROR_500).send({ message: MESSAGE_500 });
+        next(new InternalServerError(MESSAGE_500));
       }
     });
 };
 
-module.exports.likeCard = (req, res) => {
+module.exports.likeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.id,
     { $addToSet: { likes: req.user._id } },
@@ -62,22 +69,22 @@ module.exports.likeCard = (req, res) => {
     },
   )
     .then((card) => {
-      if (card == null) {
-        res.status(ERROR_404).send({ message: MESSAGE_404 });
+      if (!card) {
+        throw new NotFoundError(MESSAGE_404);
       } else {
         res.send({ data: card });
       }
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        res.status(ERROR_400).send({ message: MESSAGE_400 });
+        next(new BadRequestError(MESSAGE_400));
       } else {
-        res.status(ERROR_500).send({ message: MESSAGE_500 });
+        next(new InternalServerError(MESSAGE_500));
       }
     });
 };
 
-module.exports.dislikeCard = (req, res) => {
+module.exports.dislikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.id,
     { $pull: { likes: req.user._id } },
@@ -86,17 +93,17 @@ module.exports.dislikeCard = (req, res) => {
     },
   )
     .then((card) => {
-      if (card == null) {
-        res.status(ERROR_404).send({ message: MESSAGE_404 });
+      if (!card) {
+        throw new NotFoundError(MESSAGE_404);
       } else {
         res.send({ data: card });
       }
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        res.status(ERROR_400).send({ message: MESSAGE_400 });
+        next(new BadRequestError(MESSAGE_400));
       } else {
-        res.status(ERROR_500).send({ message: MESSAGE_500 });
+        next(new InternalServerError(MESSAGE_500));
       }
     });
 };

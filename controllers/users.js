@@ -1,56 +1,71 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 
-const ERROR_400 = 400;
-const ERROR_404 = 404;
-const ERROR_500 = 500;
+const NotFoundError = require('../errors/not-found-err');
+const BadRequestError = require('../errors/bad-request-err');
+const InternalServerError = require('../errors/internal-server-err');
+const ConflictError = require('../errors/conflict-err');
+const UnauthorizedError = require('../errors/unauthorized-err');
 
 const MESSAGE_400 = 'Переданы некорректные данные';
 const MESSAGE_404 = 'Запрашиваемый пользователь не найден';
 const MESSAGE_500 = 'На сервере произошла ошибка';
+const MESSAGE_409 = 'Пользователь с таким email уже есть';
+const MESSAGE_401 = 'Ошибка авторизации';
 
-module.exports.getUsers = (req, res) => {
+module.exports.getUsers = (req, res, next) => {
   User.find({})
     .then((user) => res.send({ data: user }))
     .catch(() => {
-      res.status(ERROR_500).send({ message: MESSAGE_500 });
+      next(new InternalServerError(MESSAGE_500));
     });
 };
 
-module.exports.getUserById = (req, res) => {
+module.exports.getUserById = (req, res, next) => {
   User.findById(req.params.id)
     .then((user) => {
-      if (user == null) {
-        res.status(ERROR_404).send({ message: MESSAGE_404 });
+      if (!user) {
+        throw new NotFoundError(MESSAGE_404);
       } else {
         res.send({ data: user });
       }
     })
-    .catch((err) => {
-      if (err.name === 'CastError') {
-        res.status(ERROR_400).send({ message: MESSAGE_400 });
-      } else {
-        res.status(ERROR_500).send({ message: MESSAGE_500 });
-      }
-    });
+    .catch(next);
 };
 
-module.exports.createUser = (req, res) => {
-  const { name, about, avatar } = req.body;
+module.exports.createUser = (req, res, next) => {
+  const {
+    name, about, avatar, password, email,
+  } = req.body;
 
-  User.create({ name, about, avatar })
+  if (!password) {
+    throw new BadRequestError('Пароль не может быть пустым');
+  }
+
+  bcrypt.hash(password, 10)
+    .then((hash) => User.create({
+      email,
+      password: hash,
+      name,
+      about,
+      avatar,
+    }))
     .then((user) => {
       res.send({ data: user });
     })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(ERROR_400).send({ message: MESSAGE_400 });
+        next(new BadRequestError(MESSAGE_400));
+      } else if (err.name === 'MongoError' && err.code === 11000) {
+        next(new ConflictError(MESSAGE_409));
       } else {
-        res.status(ERROR_500).send({ message: MESSAGE_500 });
+        next(new InternalServerError(MESSAGE_500));
       }
     });
 };
 
-module.exports.updateProfile = (req, res) => {
+module.exports.updateProfile = (req, res, next) => {
   const { name, about } = req.body;
 
   User.findByIdAndUpdate(
@@ -62,22 +77,22 @@ module.exports.updateProfile = (req, res) => {
     },
   )
     .then((user) => {
-      if (user == null) {
-        res.status(ERROR_404).send({ message: MESSAGE_404 });
+      if (!user) {
+        throw new NotFoundError(MESSAGE_404);
       } else {
         res.send({ data: user });
       }
     })
     .catch((err) => {
       if (err.name === 'ValidationError' || err.name === 'CastError') {
-        res.status(ERROR_400).send({ message: MESSAGE_400 });
+        next(new BadRequestError(MESSAGE_400));
       } else {
-        res.status(ERROR_500).send({ message: MESSAGE_500 });
+        next(new InternalServerError(MESSAGE_500));
       }
     });
 };
 
-module.exports.updateAvatar = (req, res) => {
+module.exports.updateAvatar = (req, res, next) => {
   const { avatar } = req.body;
 
   User.findByIdAndUpdate(
@@ -89,19 +104,48 @@ module.exports.updateAvatar = (req, res) => {
     },
   )
     .then((user) => {
-      if (user == null) {
-        res.status(ERROR_404).send({ message: MESSAGE_404 });
+      if (!user) {
+        throw new NotFoundError(MESSAGE_404);
       } else {
         res.send({ data: user });
       }
     })
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        res.status(ERROR_400).send({ message: MESSAGE_400 });
+        next(new BadRequestError(MESSAGE_400));
       } else if (err.name === 'CastError') {
-        res.status(ERROR_404).send({ message: MESSAGE_404 });
+        next(new NotFoundError(MESSAGE_404));
       } else {
-        res.status(ERROR_500).send({ message: MESSAGE_500 });
+        next(new InternalServerError(MESSAGE_500));
       }
+    });
+};
+
+module.exports.login = (req, res, next) => {
+  const { email, password } = req.body;
+
+  User.findUserByCredentials(email, password)
+    .then((user) => {
+      const token = jwt.sign({ _id: user._id },
+        'some-secret-key', { expiresIn: '7d' });
+      res.send({ token });
+      // res.cookie('token', token, {
+      //   maxAge: 3600000 * 24 * 7,
+      //   httpOnly: true,
+      // });
+    })
+    .catch(next(new UnauthorizedError(MESSAGE_401)));
+};
+
+module.exports.getMe = (req, res, next) => {
+  User.findById(req.user._id)
+    .then((user) => {
+      if (!user) {
+        throw new NotFoundError(MESSAGE_404);
+      }
+      res.send(user);
+    })
+    .catch(() => {
+      next(new InternalServerError(MESSAGE_500));
     });
 };
