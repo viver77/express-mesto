@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const { celebrate, Joi, errors } = require('celebrate');
 const cookieParser = require('cookie-parser');
 const usersRouter = require('./routes/users');
 const cardsRouter = require('./routes/cards');
@@ -24,8 +25,22 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.post('/signin', login);
-app.post('/signup', createUser);
+app.post('/signin', celebrate({
+  body: Joi.object().keys({
+    email: Joi.string().trim().email().required(),
+    password: Joi.string().trim().required(),
+  }),
+}), login);
+
+app.post('/signup', celebrate({
+  body: Joi.object().keys({
+    name: Joi.string().trim().min(2).max(30),
+    about: Joi.string().trim().min(2).max(30),
+    email: Joi.string().trim().email().required(),
+    password: Joi.string().trim().required(),
+    avatar: Joi.string().trim().uri(),
+  }),
+}), createUser);
 
 // авторизация
 app.use(auth);
@@ -33,9 +48,12 @@ app.use(auth);
 app.use('/users', usersRouter);
 app.use('/cards', cardsRouter);
 
-app.use('/', (req, res, next) => {
+app.use('/', () => {
   throw new NotFoundError(MESSAGE_404);
 });
+
+// обработчик ошибок celebrate
+app.use(errors());
 
 // здесь обрабатываем все ошибки
 app.use((err, req, res, next) => {
@@ -48,6 +66,7 @@ app.use((err, req, res, next) => {
         ? 'На сервере произошла ошибка'
         : message,
     });
+  next();
 });
 
 app.listen(PORT, () => {

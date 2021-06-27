@@ -39,10 +39,6 @@ module.exports.createUser = (req, res, next) => {
     name, about, avatar, password, email,
   } = req.body;
 
-  if (!password) {
-    throw new BadRequestError('Пароль не может быть пустым');
-  }
-
   bcrypt.hash(password, 10)
     .then((hash) => User.create({
       email,
@@ -52,6 +48,8 @@ module.exports.createUser = (req, res, next) => {
       avatar,
     }))
     .then((user) => {
+      // eslint-disable-next-line no-param-reassign
+      user.password = undefined;
       res.send({ data: user });
     })
     .catch((err) => {
@@ -128,13 +126,18 @@ module.exports.login = (req, res, next) => {
     .then((user) => {
       const token = jwt.sign({ _id: user._id },
         'some-secret-key', { expiresIn: '7d' });
-      res.send({ token });
-      // res.cookie('token', token, {
-      //   maxAge: 3600000 * 24 * 7,
-      //   httpOnly: true,
-      // });
+      res
+        .cookie('jwt', token, {
+          maxAge: 3600000 * 24 * 7,
+          httpOnly: true,
+          sameSite: true,
+        })
+        .send({ token });
     })
-    .catch(next(new UnauthorizedError(MESSAGE_401)));
+    .catch(() => {
+      next(new UnauthorizedError(MESSAGE_401));
+    })
+    .catch(next);
 };
 
 module.exports.getMe = (req, res, next) => {
