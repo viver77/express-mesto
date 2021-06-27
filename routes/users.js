@@ -10,6 +10,7 @@ const {
 } = require('../controllers/users');
 
 router.get('/', getUsers);
+router.get('/me', getMe);
 router.get('/:id', celebrate({
   params: Joi.object().keys({
     id: Joi.string().hex().length(24),
@@ -33,6 +34,5 @@ router.patch('/:me/avatar',
         .default('https://pictures.s3.yandex.net/resources/jacques-cousteau_1604399756.png'),
     }),
   }), updateAvatar);
-router.get('/me', getMe);
 
 module.exports = router;
