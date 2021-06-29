@@ -1,7 +1,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const { celebrate, Joi, errors } = require('celebrate');
+const {
+  celebrate, Joi, errors, CelebrateError,
+} = require('celebrate');
+const validator = require('validator');
 const cookieParser = require('cookie-parser');
 const usersRouter = require('./routes/users');
 const cardsRouter = require('./routes/cards');
@@ -25,6 +28,13 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+const urlValidation = (value) => {
+  if (!validator.isURL(value, { require_protocol: true })) {
+    throw new CelebrateError('Некорректный URL');
+  }
+  return value;
+};
+
 app.post('/signin', celebrate({
   body: Joi.object().keys({
     email: Joi.string().trim().email().required(),
@@ -38,7 +48,7 @@ app.post('/signup', celebrate({
     about: Joi.string().trim().min(2).max(30),
     email: Joi.string().trim().email().required(),
     password: Joi.string().trim().required(),
-    avatar: Joi.string().trim().uri(),
+    avatar: Joi.string().trim().custom(urlValidation),
   }),
 }), createUser);
 

@@ -1,5 +1,6 @@
 const router = require('express').Router();
-const { celebrate, Joi } = require('celebrate');
+const { celebrate, Joi, CelebrateError } = require('celebrate');
+const validator = require('validator');
 
 const {
   getCards,
@@ -9,6 +10,13 @@ const {
   deleteCard,
 } = require('../controllers/cards');
 
+const urlValidation = (value) => {
+  if (!validator.isURL(value, { require_protocol: true })) {
+    throw new CelebrateError('Некорректный URL');
+  }
+  return value;
+};
+
 router.get('/', getCards);
 
 router.post('/',
@@ -16,7 +24,7 @@ router.post('/',
     body: Joi.object().keys({
       name: Joi.string().trim().required().min(2)
         .max(30),
-      link: Joi.string().trim().uri().required(),
+      link: Joi.string().trim().required().custom(urlValidation),
     }),
   }), createCard);
 
