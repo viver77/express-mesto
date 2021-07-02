@@ -28,18 +28,17 @@ router.get('/:id', celebrate({
 router.patch('/:me',
   celebrate({
     body: Joi.object().keys({
-      name: Joi.string().trim().min(2).max(30)
-        .default('Жак-Ив Кусто'),
-      about: Joi.string().trim().min(2).max(30)
-        .default('Исследователь'),
+      name: Joi.string().trim().required().min(2)
+        .max(30),
+      about: Joi.string().trim().required().min(2)
+        .max(30),
     }),
   }), updateProfile);
 
 router.patch('/:me/avatar',
   celebrate({
     body: Joi.object().keys({
-      avatar: Joi.string().trim().custom(urlValidation)
-        .default('https://pictures.s3.yandex.net/resources/jacques-cousteau_1604399756.png'),
+      avatar: Joi.string().trim().required().custom(urlValidation),
     }),
   }), updateAvatar);
 

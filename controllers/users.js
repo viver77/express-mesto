@@ -4,22 +4,16 @@ const User = require('../models/user');
 
 const NotFoundError = require('../errors/not-found-err');
 const BadRequestError = require('../errors/bad-request-err');
-const InternalServerError = require('../errors/internal-server-err');
 const ConflictError = require('../errors/conflict-err');
-const UnauthorizedError = require('../errors/unauthorized-err');
 
 const MESSAGE_400 = 'Переданы некорректные данные';
 const MESSAGE_404 = 'Запрашиваемый пользователь не найден';
-const MESSAGE_500 = 'На сервере произошла ошибка';
 const MESSAGE_409 = 'Пользователь с таким email уже есть';
-const MESSAGE_401 = 'Ошибка авторизации';
 
 module.exports.getUsers = (req, res, next) => {
   User.find({})
     .then((user) => res.send({ data: user }))
-    .catch(() => {
-      next(new InternalServerError(MESSAGE_500));
-    });
+    .catch(next);
 };
 
 module.exports.getUserById = (req, res, next) => {
@@ -58,7 +52,7 @@ module.exports.createUser = (req, res, next) => {
       } else if (err.name === 'MongoError' && err.code === 11000) {
         next(new ConflictError(MESSAGE_409));
       } else {
-        next(new InternalServerError(MESSAGE_500));
+        next(err);
       }
     });
 };
@@ -85,7 +79,7 @@ module.exports.updateProfile = (req, res, next) => {
       if (err.name === 'ValidationError' || err.name === 'CastError') {
         next(new BadRequestError(MESSAGE_400));
       } else {
-        next(new InternalServerError(MESSAGE_500));
+        next(err);
       }
     });
 };
@@ -114,7 +108,7 @@ module.exports.updateAvatar = (req, res, next) => {
       } else if (err.name === 'CastError') {
         next(new NotFoundError(MESSAGE_404));
       } else {
-        next(new InternalServerError(MESSAGE_500));
+        next(err);
       }
     });
 };
@@ -134,9 +128,6 @@ module.exports.login = (req, res, next) => {
         })
         .send({ token });
     })
-    .catch(() => {
-      next(new UnauthorizedError(MESSAGE_401));
-    })
     .catch(next);
 };
 
@@ -148,7 +139,5 @@ module.exports.getMe = (req, res, next) => {
       }
       res.send(user);
     })
-    .catch(() => {
-      next(new InternalServerError(MESSAGE_500));
-    });
+    .catch(next);
 };

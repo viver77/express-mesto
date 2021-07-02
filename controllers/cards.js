@@ -2,12 +2,10 @@ const Card = require('../models/card');
 
 const MESSAGE_400 = 'Переданы некорректные данные';
 const MESSAGE_404 = 'Запрашиваемая карточка не найдена';
-const MESSAGE_500 = 'На сервере произошла ошибка';
 const MESSAGE_403 = 'Нельзя удалять чужие карточки';
 
 const NotFoundError = require('../errors/not-found-err');
 const BadRequestError = require('../errors/bad-request-err');
-const InternalServerError = require('../errors/internal-server-err');
 const ForbiddenError = require('../errors/forbidden-err');
 
 module.exports.getCards = (req, res, next) => {
@@ -15,9 +13,7 @@ module.exports.getCards = (req, res, next) => {
     .then((card) => res.status(200).send(
       { data: card },
     ))
-    .catch(() => {
-      next(new InternalServerError(MESSAGE_500));
-    });
+    .catch(next);
 };
 
 module.exports.createCard = (req, res, next) => {
@@ -32,7 +28,7 @@ module.exports.createCard = (req, res, next) => {
       if (err.name === 'ValidationError') {
         next(new BadRequestError(MESSAGE_400));
       } else {
-        next(new InternalServerError(MESSAGE_500));
+        next(err);
       }
     });
 };
@@ -55,7 +51,7 @@ module.exports.deleteCard = (req, res, next) => {
       if (err.name === 'CastError') {
         next(new BadRequestError(MESSAGE_400));
       } else {
-        next(new InternalServerError(MESSAGE_500));
+        next(err);
       }
     });
 };
@@ -79,7 +75,7 @@ module.exports.likeCard = (req, res, next) => {
       if (err.name === 'CastError') {
         next(new BadRequestError(MESSAGE_400));
       } else {
-        next(new InternalServerError(MESSAGE_500));
+        next(err);
       }
     });
 };
@@ -103,7 +99,7 @@ module.exports.dislikeCard = (req, res, next) => {
       if (err.name === 'CastError') {
         next(new BadRequestError(MESSAGE_400));
       } else {
-        next(new InternalServerError(MESSAGE_500));
+        next(err);
       }
     });
 };
